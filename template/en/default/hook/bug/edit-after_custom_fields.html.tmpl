@@ -1,0 +1,31 @@
+[%# This Source Code Form is subject to the terms of the Mozilla Public
+  # License, v. 2.0. If a copy of the MPL was not distributed with this
+  # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+  #
+  # This Source Code Form is "Incompatible With Secondary Licenses", as
+  # defined by the Mozilla Public License, v. 2.0.
+  #%]
+<tr><td colspan=2>
+<input type="checkbox" name="teamwork_sync" id="teamwork_sync"
+         [% " checked" IF bug.teamwork_sync %]>
+  <label for="teamwork_sync">
+    Enable Teamwork Syncing
+  </label>
+</td>
+</tr>
+<tr>
+<td colspan=4>
+  <label for="teamwork_tasklistid">
+    Teamwork Tasklist ID
+  </label>
+<input type="text" name="teamwork_tasklistid" id="teamwork_tasklistid" value="[% bug.teamwork_tasklistid %]">
+</td>
+</tr>
+<tr>
+<td colspan=4>
+  <label>
+    Teamwork Task ID
+  </label>
+<input type="text" name="teamwork_taskid" id="teamwork_taskid" value="[% bug.teamwork_taskid %]">
+</td>
+</tr>

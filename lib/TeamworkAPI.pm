@@ -12,17 +12,22 @@ use Moo;
 use JSON;
 use JSON::XS ();
 use LWP::UserAgent;
- 
-has 'lwp' => (is => 'rw', default => sub { my $lwpo = LWP::UserAgent->new();$lwpo->agent('Bugzilla/5.0');return $lwpo;});
-my $domain = 'https://winged7.teamwork.com';
-my $apikey = 'very769toe';
+use Data::Dumper; 
+
+has 'UserAgent' => (is => 'rw', default => "Bugzilla/5.0");
+has 'domain' => (is => 'rw');
+has 'apikey' => (is => 'rw');
 
 sub Get {
     my $self = shift;
-    my $lwp = $self->lwp;
     my $requesturi = shift;
+    my $domain = $self->domain;
+    my $apikey = $self->apikey;
+    warn $domain;
     my $url = $domain.$requesturi;
     my $req = HTTP::Request->new( 'GET', $url );
+    my $lwp = LWP::UserAgent->new();
+    $lwp->agent($self->UserAgent);
 
     $req->header( 'Content-Type' => 'application/json' );
     $req->authorization_basic($apikey,"xxx");
@@ -36,16 +41,18 @@ sub Get {
 
 sub Post {
     my $self = shift;
-    my $lwp = $self->lwp;
     my $requesturi = shift;
     my $json_text = shift;
+    my $lwp = LWP::UserAgent->new();
+    $lwp->agent($self->UserAgent);
+    my $domain = $self->domain;
     my $url = $domain.$requesturi;
 
     my $req = HTTP::Request->new( 'POST', $url );
 
     $req->header( 'Content-Type' => 'application/json' );
     $req->content( $json_text );
-    $req->authorization_basic($apikey,"xxx");
+    $req->authorization_basic($self->apikey,"xxx");
     my $res = $lwp->request($req);
     return $res;
 }
@@ -54,7 +61,7 @@ sub Post {
 sub GetPersonId {
     my $self = shift;
     my $email = shift;
-if (!$email){return "-1"};
+    if (!$email){return "-1"};
     my $json_hashref = $self->Get('/people.json?emailaddress='.$email);
     my $personid = $json_hashref->{people}->[0]->{id};
     return $personid;

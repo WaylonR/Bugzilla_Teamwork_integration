@@ -1,0 +1,20 @@
+[%# This Source Code Form is subject to the terms of the Mozilla Public
+  # License, v. 2.0. If a copy of the MPL was not distributed with this
+  # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+  #
+  # This Source Code Form is "Incompatible With Secondary Licenses", as
+  # defined by the Mozilla Public License, v. 2.0.
+  #%]
+
+[% title = "Teamwork Integration"
+   desc = "Settings for Teamwork Integration"
+%]
+
+[% param_descs = {
+  "teamwork-domain" =>
+    "The teamwork domain to integrate with.",
+  "teamwork-default-apikey" =>
+    "The default teamwork apikey used if a bugzilla user hasn't set their own. Recommendation: Create a teamwork user named 'Unknown' and use accordingly.",
+  "teamwork-default-tasklist-id" =>
+    "The default tasklist id, which can get overridden by a project's tasklist id or by the bugs own tasklistid.",
+} %]
