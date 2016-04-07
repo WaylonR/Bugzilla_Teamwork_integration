@@ -34,3 +34,5 @@ use constant get_param_list => (
     default => ''
   },
 );
+
+1;
