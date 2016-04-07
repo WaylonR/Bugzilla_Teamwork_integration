@@ -19,6 +19,13 @@ use Bugzilla::Extension::Teamwork_integration::TeamworkAPI;
 use DateTime;
 use DateTime::Format::MySQL;
 use Data::Dumper;
+use Bugzilla;
+use Bugzilla::Util;
+use Bugzilla::Error;
+use Bugzilla::Constants;
+use Bugzilla::Token;
+use Bugzilla::Field;
+use Bugzilla::Field::Choice;
 
 our $VERSION = '0.1';
 
@@ -38,6 +45,92 @@ sub config_add_panels {
   $modules->{'TeamworkIntegration'} = 'Bugzilla::Extension::Teamwork_integration::Params';
 }
 
+sub page_before_template {
+   my ($self, $args) = @_;
+   my ($vars, $page) = @$args{qw(vars page_id)};
+
+   # You can see this hook in action by loading page.cgi?id=example.html
+   if ($page eq 'bugzilla-teamwork-priority.html') {
+     #$vars->{cgi_variables} = { Bugzilla->cgi->Vars };
+     my $user = Bugzilla->login(LOGIN_REQUIRED);
+     my $dbh      = Bugzilla->dbh;
+     my $cgi      = Bugzilla->cgi;
+     my $template = Bugzilla->template;
+     my $vars = {};
+
+     print $cgi->header();
+     $user->in_group('admin')
+       || ThrowUserError('auth_failure', {group  => "admin",
+                                    action => "edit",
+                                    object => "field_values"});
+
+     #
+     # often-used variables
+     #
+     my $action = trim($cgi->param('action')  || '');
+     my $token  = $cgi->param('token');
+     my $fieldname = "priority";
+     my $field = Bugzilla::Field->check($fieldname);
+
+     if (!$field->is_select || $field->is_abnormal) {
+       ThrowUserError('fieldname_invalid', { field => $field });
+     }
+
+     $vars->{'field'} = $field;
+     unless ($action) {
+       $vars = _list_priority_with_teamwork($vars);$template->process("admin/bugzilla-teamwork-priority-list.html.tmpl", $vars)
+       || ThrowTemplateError($template->error());
+       exit
+     };
+
+     # After this, we always have a value
+     my $value = Bugzilla::Field::Choice->type($field)->check($cgi->param('value'));
+     $vars->{value} = $value;
+
+     #
+     # action='edit' -> present the edit-value form
+     # (next action would be 'update')
+     #
+     if ($action eq 'edit') {
+       $vars = _list_priority_with_teamwork($vars);
+       $vars->{'token'} = issue_session_token('edit_field_value');
+       $template->process("admin/bugzilla-teamwork-priority-edit.html.tmpl", $vars)
+         || ThrowTemplateError($template->error());
+       exit;
+     }
+
+     #
+     # action='update' -> update the field value
+     #
+     if ($action eq 'update') {
+       check_token_data($token, 'edit_field_value');
+       my $priority = scalar $cgi->param('value_new');
+       my $teamwork_priority = scalar $cgi->param('teamwork_priority');
+       trick_taint($priority);
+       trick_taint($teamwork_priority);
+       my $dbh = Bugzilla->dbh;
+
+       $dbh->bz_start_transaction();
+       $dbh->do("UPDATE priority SET teamwork_priority = ? WHERE value = ?",
+            undef, ($teamwork_priority, $priority));
+       $dbh->bz_commit_transaction();
+
+       delete_token($token);
+       $vars->{value} = undef;
+
+       $vars = _list_priority_with_teamwork($vars);
+       $template->process("admin/bugzilla-teamwork-priority-list.html.tmpl", $vars)
+         || ThrowTemplateError($template->error());
+       exit
+     }
+
+    # No valid action found
+    ThrowUserError('unknown_action', {action => $action});
+
+  }
+}
+
+
 sub bug_start_of_update {
     my ($self, $args) = @_;
     my ($bug, $old_bug, $timestamp, $changes) =
@@ -48,6 +141,14 @@ sub bug_start_of_update {
             $changes->{teamwork_taskid} = [0,$taskid];
             $bug->{teamwork_taskid} = $taskid;
             $bug->set('teamwork_taskid',$taskid);
+        }
+        if($changes->{priority}) {
+          my $twh = _teamwork_handle();
+          my $vars;
+          $vars->{value}->{value} = $bug->{priority};
+          $vars = _list_priority_with_teamwork($vars);
+          my $twpriority = $vars->{teamwork_priority};
+          $twh->UpdatePriority($bug->{teamwork_taskid},$twpriority);
         }
         if(my $added_comments = $bug->{added_comments} and $bug->{teamwork_taskid}) {
             my $bug_id = $added_comments->[0]->{bug_id};
@@ -170,12 +271,16 @@ sub teamwork_createtask {
     my $assigned_toinfo = new Bugzilla::User($assigned_toid);
     my $reporter_email = $reporterinfo->email();
     my $assigned_to_email = $assigned_toinfo->email();
+    my $vars;
+    $vars->{value}->{value} = $bug_params->{priority};
+    $vars = _list_priority_with_teamwork($vars);
     my $text = $bug_params->{comment}->{thetext} || $bug_params->{comments}->[0]->{thetext} || " ";
     my $taskid = $twh->CreateTask($tasklistid,
                                     $bug_params->{short_desc},
                                     $text,
                                     $reporter_email,
-                                    $assigned_to_email
+                                    $assigned_to_email,
+                                    $vars->{teamwork_priority}
                  );
     return $taskid;
 }
@@ -205,6 +310,7 @@ sub install_update_db {
     $dbh->bz_add_column('bugs', 'teamwork_sync', { TYPE => 'BOOLEAN' });
     $dbh->bz_add_column('bugs', 'teamwork_taskid', { TYPE => 'INTEGER' });
     $dbh->bz_add_column('bugs', 'teamwork_tasklistid', { TYPE => 'INTEGER' });
+    $dbh->bz_add_column('priority','teamwork_priority', { TYPE => 'TEXT' });
 }
 
 sub _teamwork_handle {
@@ -213,4 +319,28 @@ sub _teamwork_handle {
   my $twh = Bugzilla::Extension::Teamwork_integration::TeamworkAPI->new(apikey => $apikey, domain => $domain);
   return $twh;
 }
+
+sub _list_priority_with_teamwork {
+    my $vars = shift;
+    my $template = Bugzilla->template;
+    my $dbh = Bugzilla->dbh;
+    my $prepare_statement = "SELECT id, value, teamwork_priority FROM priority";
+    if ($vars->{value}) { $prepare_statement .= " WHERE value = ?" };
+    $prepare_statement .= " ORDER BY sortkey";
+    my $sth = $dbh->prepare($prepare_statement);
+    my $priority_rows;
+    if ($vars->{value}){
+      my $truevalue = $vars->{value}->{value};
+      $sth->execute($truevalue) or die;
+      $priority_rows = $sth->fetchall_hashref("value");
+      $vars->{teamwork_priority} = $priority_rows->{$truevalue}->{teamwork_priority};
+   }
+   else {
+      $sth->execute or die;
+      $priority_rows = $sth->fetchall_hashref("id");
+  }
+  $vars->{'priority_rows'} = $priority_rows;
+  return $vars;
+}
+
 __PACKAGE__->NAME;

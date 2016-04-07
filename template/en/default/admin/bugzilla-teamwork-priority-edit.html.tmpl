@@ -1,0 +1,52 @@
+[%# This Source Code Form is subject to the terms of the Mozilla Public
+  # License, v. 2.0. If a copy of the MPL was not distributed with this
+  # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+  #
+  # This Source Code Form is "Incompatible With Secondary Licenses", as
+  # defined by the Mozilla Public License, v. 2.0.
+  #%]
+
+[%# INTERFACE:
+  # value: Bugzilla::Field::Choice; The field value we are editing.
+  # field: Bugzilla::Field; The field this value belongs to.
+  #%]
+
+[% title = BLOCK %]
+  Edit Bugzilla Priority '[% value.name FILTER html %]' for Bugzilla to Teamwork integration
+[% END %]
+[% PROCESS global/header.html.tmpl
+  title = title
+  style_urls = ['skins/standard/admin.css']
+%]
+
+<form method="post" action="page.cgi?id=bugzilla-teamwork-priority.html">
+  <table id="admin_table_edit">
+    <tr>
+      <th><label for="value_new">Bugzilla Priority:</label></th>
+      <td>
+        [% IF value.is_static %]
+          <input type="hidden" name="value_new" id="value_new"
+                 value="[% value.name FILTER html %]">
+            [%- value.name FILTER html %]
+        [% ELSE %]
+          <input id="value_new" name="value_new" size="20"
+                 maxlength="[% constants.MAX_FIELD_VALUE_SIZE FILTER none %]"
+                 value="[% value.name FILTER html %]" required>
+        [% END %]
+      </td>
+    </tr>
+    <tr>
+      <th><label for="teamwork_priority">Teamwork Priority:</label></th>
+      <td><input id="teamwork_priority" size="6" maxlength="6" name="teamwork_priority"
+                 value="[%- teamwork_priority FILTER html %]"></td>
+    </tr>
+  </table>
+  <input type="hidden" name="value" value="[% value.name FILTER html %]">
+  <input type="hidden" name="action" value="update">
+  <input type="hidden" name="field" value="[% field.name FILTER html %]">
+  <input type="hidden" name="token" value="[% token FILTER html %]">
+  <input type="submit" id="update" value="Save Changes">
+</form>
+
+
+[% PROCESS global/footer.html.tmpl %]

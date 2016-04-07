@@ -1,0 +1,3 @@
+        [% class = user.in_group('admin') ? "" : "forbidden" %]
+        <dt id="teamwork_priority" class="[% class %]"><a href="page.cgi?id=bugzilla-teamwork-priority.html">Bugzilla to Teamwork Priority mapping</a></dt>
+        <dd class="[% class %]">The mapping defines how a teamwork tasks priority is set, according to the [% term.bugs %] priority.</dd>

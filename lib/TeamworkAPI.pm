@@ -23,7 +23,6 @@ sub Get {
     my $requesturi = shift;
     my $domain = $self->domain;
     my $apikey = $self->apikey;
-    warn $domain;
     my $url = $domain.$requesturi;
     my $req = HTTP::Request->new( 'GET', $url );
     my $lwp = LWP::UserAgent->new();
@@ -41,6 +40,7 @@ sub Get {
 
 sub Post {
     my $self = shift;
+    my $method = shift;
     my $requesturi = shift;
     my $json_text = shift;
     my $lwp = LWP::UserAgent->new();
@@ -48,7 +48,7 @@ sub Post {
     my $domain = $self->domain;
     my $url = $domain.$requesturi;
 
-    my $req = HTTP::Request->new( 'POST', $url );
+    my $req = HTTP::Request->new( $method, $url );
 
     $req->header( 'Content-Type' => 'application/json' );
     $req->content( $json_text );
@@ -76,7 +76,7 @@ sub CreateComment {
     my $json_text = encode_json \%commenthash;
     my $requesturi = '/tasks/'.$taskId.'/comments.json';
 
-    my $res = $self->Post($requesturi,$json_text);
+    my $res = $self->Post('POST',$requesturi,$json_text);
     if( $res->code ne '201') {
         return;
     };
@@ -99,7 +99,7 @@ sub CreateTimeEntry {
         $requesturi = '/projects/'.$ProgOrTaskID.'/time_entries.json';
     } else { return '--- Bad insert mode.' };
 
-    my $res = $self->Post($requesturi,$json_text);
+    my $res = $self->Post('POST',$requesturi,$json_text);
     if( $res->code ne '201') {
         return;
     };
@@ -115,18 +115,20 @@ sub CreateTask {
     my $creator_email = shift;
     my $creator_id = $self->GetPersonId($creator_email);
     my $assignee_email = shift;
+    my $priority = shift;
     my $personid = $self->GetPersonId($assignee_email);
     $personid = $personid ? $personid : "-1";
     my %taskhash = ('content' => $name, 
                                     'description' => $description,
                                     'creator-id' => $creator_id, 
-                                    'responsible-party-id' => $personid
+                                    'responsible-party-id' => $personid,
+                                    'priority' => $priority
                    );
     my $taskhashref = \%taskhash;
     my %todohash = ( 'todo-item' => $taskhashref );
     my $requesturi = '/tasklists/'.$tasklistid.'/tasks.json';
     my $json_text = encode_json \%todohash;
-    my $res = $self->Post($requesturi, $json_text);
+    my $res = $self->Post('POST',$requesturi, $json_text);
 
     if( $res->code ne '201') {
         return;
@@ -135,7 +137,17 @@ sub CreateTask {
     return $taskid;
 }
 
-
+sub UpdatePriority {
+    my $self = shift;
+    my $taskid = shift;
+    my $newpriority = shift;
+    my %taskupdatehash = ('priority' => $newpriority);
+    my $taskupdatehashref = \%taskupdatehash;
+    my %todoupdatehash = ( 'todo-item' => $taskupdatehashref );
+    my $requesturi = '/tasks/'.$taskid.'.json';
+    my $json_text = encode_json \%todoupdatehash;
+    my $res = $self->Post('PUT', $requesturi, $json_text);
+ }
     
 # This file can be loaded by your extension via 
 # "use Bugzilla::Extension::Teamwork-integration::TeamworkAPI". You can put functions

@@ -1,0 +1,59 @@
+[%# This Source Code Form is subject to the terms of the Mozilla Public
+  # License, v. 2.0. If a copy of the MPL was not distributed with this
+  # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+  #
+  # This Source Code Form is "Incompatible With Secondary Licenses", as
+  # defined by the Mozilla Public License, v. 2.0.
+  #%]
+
+[%# INTERFACE:
+  # values: array of hashes having the following properties:
+  #   - name: string; The value.
+  #   - sortkey: number; The sortkey used to order the value when 
+  #              displayed to the user in a list.
+  #
+  # field: object; the field we are editing values for.
+  # static: array; list of values which cannot be renamed nor deleted.
+  #%]
+
+[% USE Bugzilla %]
+[% cgi = Bugzilla.cgi %]
+
+[% title = BLOCK %]Bugzilla Priority to Teamwork Priority mapping[% END %]
+[% PROCESS global/header.html.tmpl
+  title = title
+  style_urls = ['skins/standard/admin.css']
+%]
+
+[% edit_contentlink = BLOCK %]page.cgi?id=bugzilla-teamwork-priority.html&amp;action=edit&amp;field=
+  [%- field.name FILTER uri %]&amp;value=[% END %]
+
+<table id="admin_table">
+  <tr class="column_header">
+  <th class="left">
+  ID
+  </th>
+  <th class="left">
+  Bugzilla Priority
+  </th>
+  <th class="left">
+  Teamwork Priority
+  </th>
+  </tr>
+[% FOREACH row IN priority_rows %]
+  <tr>
+    <td>
+   [% row.value.id %]
+    </td>
+    <td>
+    <a href="[% edit_contentlink %][% row.value.value %]">[% row.value.value %]</a>
+    </td>
+    <td>
+    [% row.value.teamwork_priority %]
+    </td>
+    </tr>
+[% END %]
+</table>
+
+
+[% PROCESS global/footer.html.tmpl %]
