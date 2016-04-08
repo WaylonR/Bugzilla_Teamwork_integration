@@ -286,6 +286,30 @@ sub teamwork_createtask {
 }
 
  	
+sub user_preferences {
+    my ($self, $args) = @_;
+    my $tab = $args->{current_tab};
+    my $save = $args->{save_changes};
+    my $handled = $args->{handled};
+    my $dbh = Bugzilla->dbh;
+    my $user = Bugzilla->user;
+
+    return unless $tab eq 'teamwork_settings';
+    my $teamwork_apikey_db = $dbh->selectcol_arrayref("SELECT teamwork_apikey FROM profiles WHERE userid = ?", undef, ($user->id));
+    $args->{'vars'}->{'teamwork_apikey'} = @{$teamwork_apikey_db}[0];
+    my $teamwork_apikey_in = Bugzilla->input_params->{'teamwork_apikey'};
+    if ($save) {
+        trick_taint($teamwork_apikey_in);
+        $dbh->do("UPDATE profiles SET teamwork_apikey = ? WHERE userid  = ?",
+            undef, ($teamwork_apikey_in, $user->id));
+        $args->{'vars'}->{'teamwork_apikey'} = $teamwork_apikey_in;
+    }
+
+    # Set the 'handled' scalar reference to true so that the caller
+    # knows the panel name is valid and that an extension took care of it.
+    $$handled = 1;
+}
+
 
 sub install_update_db {
     my $dbh = Bugzilla->dbh;
@@ -311,11 +335,19 @@ sub install_update_db {
     $dbh->bz_add_column('bugs', 'teamwork_taskid', { TYPE => 'INTEGER' });
     $dbh->bz_add_column('bugs', 'teamwork_tasklistid', { TYPE => 'INTEGER' });
     $dbh->bz_add_column('priority','teamwork_priority', { TYPE => 'TEXT' });
+    $dbh->bz_add_column('profiles','teamwork_apikey' , { TYPE => 'TEXT' });
 }
 
 sub _teamwork_handle {
-  my $apikey = Bugzilla->params->{'teamwork-default-apikey'};
+  my $dbh = Bugzilla->dbh;
+  my $user = Bugzilla->user;
+
+  my $teamwork_apikey_db = $dbh->selectcol_arrayref("SELECT teamwork_apikey FROM profiles WHERE userid = ?", undef, ($user->id));
+  my $user_apikey = @{$teamwork_apikey_db}[0];
+
+  my $apikey = $user_apikey || Bugzilla->params->{'teamwork-default-apikey'};
   my $domain = Bugzilla->params->{'teamwork-domain'};
+
   my $twh = Bugzilla::Extension::Teamwork_integration::TeamworkAPI->new(apikey => $apikey, domain => $domain);
   return $twh;
 }

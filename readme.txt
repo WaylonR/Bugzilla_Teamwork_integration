@@ -15,8 +15,9 @@ Installation
 3. run checksetup.pl to install the extensions prerequisite modules.
 4. Restart your webserver if needed (for example if your running under mod_perl)
 5. Map your bugzilla to teamwork priority mappings using the link off of the administration panel.
-6. Set the teamwork apikey and teamwork domain in administration -> parameters
-7. Enjoy!
+6. Set the default (Make a Unknown User, or equiv account in teamwork, and give this its apikey) teamwork apikey and teamwork domain in administration -> parameters
+7. Set your own Teamwork key in your user preferences, under Teamwork settings.
+8. Enjoy!
 
 Usage:
 	On a new bug, check the "Enable Teamwork Sync" checkbox down by the submit button, put the Teamwork tasklist id number into Teamwork Tasklist id. Fill out the bug as normal, and submit. 
