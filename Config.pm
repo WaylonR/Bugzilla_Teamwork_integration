@@ -44,6 +44,11 @@ use constant REQUIRED_MODULES => [
        module => 'LWP::UserAgent',
        version => 0,
     },
+    {
+       package => 'Package::Stash::XS - compiled Package::Stash API',
+       module => 'Package::Stash::XS',
+       version => 0,
+    },
 ];
 
 use constant OPTIONAL_MODULES => [
