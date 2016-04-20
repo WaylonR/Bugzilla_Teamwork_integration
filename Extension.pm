@@ -165,8 +165,9 @@ sub bug_start_of_update {
                 my $minutes;
                 if($frac != 0){
                 $minutes= 60 / 
-                         (100 / $frac)}
+                         (10 / $frac)}
                    else {$minutes=0};
+                $hours = $hours ? $hours : "0.0";
                 my $sec_elapsed = $hours * 60*60 + $minutes * 60;
                 my $dt = DateTime::Format::MySQL->parse_datetime($bug_when);
                 $dt->subtract(hours => $hours, minutes => $minutes);
