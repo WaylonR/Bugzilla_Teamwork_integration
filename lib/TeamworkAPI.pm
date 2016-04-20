@@ -129,7 +129,6 @@ sub CreateTask {
     my $requesturi = '/tasklists/'.$tasklistid.'/tasks.json';
     my $json_text = encode_json \%todohash;
     my $res = $self->Post('POST',$requesturi, $json_text);
-
     if( $res->code ne '201') {
         return;
     }
@@ -143,12 +142,28 @@ sub UpdatePriority {
     my $newpriority = shift;
     my %taskupdatehash = ('priority' => $newpriority);
     my $taskupdatehashref = \%taskupdatehash;
+    my $res = $self->UpdateTask($taskid, $taskupdatehashref);
+}
+
+sub UpdateResponsiblePartyId {
+    my $self = shift;
+    my $taskid = shift;
+    my $newassignee = shift;
+    my %taskupdatehash = ('responsible-party-id' => $newassignee);
+    my $taskupdatehashref = \%taskupdatehash;
+    my $res = $self->UpdateTask($taskid, $taskupdatehashref);
+}
+
+sub UpdateTask {
+    my $self = shift;
+    my $taskid = shift;
+    my $taskupdatehashref = shift;
     my %todoupdatehash = ( 'todo-item' => $taskupdatehashref );
     my $requesturi = '/tasks/'.$taskid.'.json';
     my $json_text = encode_json \%todoupdatehash;
     my $res = $self->Post('PUT', $requesturi, $json_text);
- }
-    
+}
+
 # This file can be loaded by your extension via 
 # "use Bugzilla::Extension::Teamwork-integration::TeamworkAPI". You can put functions
 # used by your extension in here.

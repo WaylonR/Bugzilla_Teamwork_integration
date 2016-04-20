@@ -110,10 +110,8 @@ sub page_before_template {
        trick_taint($teamwork_priority);
        my $dbh = Bugzilla->dbh;
 
-       $dbh->bz_start_transaction();
        $dbh->do("UPDATE priority SET teamwork_priority = ? WHERE value = ?",
             undef, ($teamwork_priority, $priority));
-       $dbh->bz_commit_transaction();
 
        delete_token($token);
        $vars->{value} = undef;
@@ -137,7 +135,9 @@ sub bug_start_of_update {
         @$args{qw(bug old_bug timestamp changes)};
     if($bug->{teamwork_sync}){
         unless($bug->{teamwork_taskid}){
-            my $taskid = teamwork_createtask($bug->{teamwork_tasklistid},$bug);
+            my $tasklistid;
+            $tasklistid = $bug->{teamwork_tasklistid} ? $bug->{teamwork_tasklistid} : Bugzilla->params->{'teamwork-default-tasklist-id'};
+            my $taskid = teamwork_createtask($tasklistid,$bug);
             $changes->{teamwork_taskid} = [0,$taskid];
             $bug->{teamwork_taskid} = $taskid;
             $bug->set('teamwork_taskid',$taskid);
@@ -149,6 +149,14 @@ sub bug_start_of_update {
           $vars = _list_priority_with_teamwork($vars);
           my $twpriority = $vars->{teamwork_priority};
           $twh->UpdatePriority($bug->{teamwork_taskid},$twpriority);
+        }
+        if($changes->{assigned_to}){
+          my $twh = _teamwork_handle();
+          my $assigned_to = $bug->{assigned_to};
+          my $toinfo = new Bugzilla::User($assigned_to);
+          my $to_email = $toinfo->email();
+          my $personid = $twh->GetPersonId($to_email);
+          $twh->UpdateResponsiblePartyId($bug->{teamwork_taskid},$personid);
         }
         if(my $added_comments = $bug->{added_comments} and $bug->{teamwork_taskid}) {
             my $bug_id = $added_comments->[0]->{bug_id};
@@ -251,8 +259,11 @@ sub object_end_of_set_all {
 sub bug_end_of_create_validators {
     my ($self, $args) = @_;
     my $bug_params = $args->{'params'};
+    my $tasklistid;
+    $tasklistid = $bug_params->{teamwork_tasklistid} ? $bug_params->{teamwork_tasklistid} : Bugzilla->params->{'teamwork-default-tasklist-id'};
+    if (!$bug_params->{teamwork_tasklistid}) {$bug_params->{teamwork_tasklistid} = $tasklistid};
     if ($bug_params->{teamwork_sync}){
-        if(my $tasklistid = $bug_params->{teamwork_tasklistid}){
+        if($tasklistid){
             unless ($bug_params->{teamwork_taskid}){
                 # Now create the task
                 my $taskid = teamwork_createtask ($tasklistid, $bug_params);
@@ -276,7 +287,7 @@ sub teamwork_createtask {
     $vars->{value}->{value} = $bug_params->{priority};
     $vars = _list_priority_with_teamwork($vars);
     my $text = $bug_params->{comment}->{thetext} || $bug_params->{comments}->[0]->{thetext} || " ";
-    my $taskid = $twh->CreateTask($tasklistid,
+    my $taskid = $twh->CreateTask($tasklistid+0,
                                     $bug_params->{short_desc},
                                     $text,
                                     $reporter_email,
